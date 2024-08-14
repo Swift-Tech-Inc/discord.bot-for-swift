@@ -1,123 +1,115 @@
-const { Client, GatewayIntentBits, Partials } = require("discord.js");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-require("dotenv").config();
+import google.generativeai as genai
+from dotenv import load_dotenv
 
-// Check for API key
-if (!process.env.GOOGLE_API_KEY) {
-  console.error("GOOGLE_API_KEY is not set in environment variables!");
-  process.exit(1);
-}
+# Load environment variables
+load_dotenv()
 
-// Set the ID of the server you want the bot to work in
-const ALLOWED_SERVER_ID = 'YOUR_SERVER_ID_HERE'; // Replace with your server's ID
+# Check for API key
+if 'GOOGLE_API_KEY' not in os.environ:
+    print("GOOGLE_API_KEY is not set in environment variables!")
+    exit(1)
 
-// Set the AI's emotion/personality here
-const AI_EMOTION = "a helpful and friendly AI assistant"; // Change this to set the AI's emotion
+# Set the ID of the server you want the bot to work in
+ALLOWED_SERVER_ID = 123456789  # Replace with your server's ID (as an integer)
 
-// Set the bot's nickname here
-const BOT_NICKNAME = "AI Assistant"; // Change this to set the bot's nickname
+# Set the AI's emotion/personality here
+AI_EMOTION = "a helpful and friendly AI assistant"  # Change this to set the AI's emotion
 
-// Initialize Discord client
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-  ],
-  partials: [Partials.Channel],
-});
+# Set the bot's nickname here
+BOT_NICKNAME = "AI Assistant"  # Change this to set the bot's nickname
 
-// Initialize Google AI
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+# Initialize Discord client
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True  # Enable member intents
+bot = commands.Bot(command_prefix='/', intents=intents)
 
-// Function to change bot nickname
-async function setBotNickname(guild, nickname) {
-  try {
-    await guild.members.me.setNickname(nickname);
-    console.log(`Set nickname to "${nickname}" in guild: ${guild.name}`);
-  } catch (error) {
-    console.error(`Failed to set nickname in ${guild.name}: ${error.message}`);
-  }
-}
+# Initialize Google AI
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+model = genai.GenerativeModel('gemini-pro')
 
-// Function to send welcome message
-async function sendWelcomeMessage(guild) {
-  if (guild.id !== ALLOWED_SERVER_ID) return;
-  
-  console.log(`Sending welcome message to allowed guild: ${guild.name}`);
-  try {
-    const channel = guild.channels.cache.find(
-      channel => channel.type === 0 && channel.permissionsFor(guild.members.me).has('SendMessages')
-    );
-    if (channel) {
-      await channel.send(`Hello, I'm your AI Assistant. Type \`/chat "your question"\` to chat with me!`);
-      console.log(`Welcome message sent to ${channel.name} in ${guild.name}`);
-    } else {
-      console.log(`No suitable channel found in ${guild.name}`);
-    }
-  } catch (error) {
-    console.error(`Error sending welcome message to ${guild.name}:`, error);
-  }
-}
+async def set_bot_nickname(guild, nickname):
+    try:
+        await guild.me.edit(nick=nickname)
+        print(f'Set nickname to "{nickname}" in guild: {guild.name}')
+    except Exception as error:
+        print(f"Failed to set nickname in {guild.name}: {error}")
 
-// Bot ready event
-client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}!`);  
-
-  const allowedGuild = client.guilds.cache.get(ALLOWED_SERVER_ID);
-  if (allowedGuild) {
-    await sendWelcomeMessage(allowedGuild);
-    await setBotNickname(allowedGuild, BOT_NICKNAME);
-  } else {
-    console.log(`Bot is not in the allowed server (ID: ${ALLOWED_SERVER_ID})`);
-  }
-});
-
-// Message creation event
-client.on("messageCreate", async (message) => {
-  // Ignore messages from other servers
-  if (message.guild.id !== ALLOWED_SERVER_ID) return;
-
-  console.log(`Received message: ${message.content}`);
-
-  if (message.author.bot) return;
-
-  if (message.content.startsWith("/chat")) {
-    console.log("Chat command detected.");
-    const userPrompt = message.content.slice(6);
-    const fullPrompt = `You are ${AI_EMOTION}. Respond to: "${userPrompt}"`;
-    console.log(`Full Prompt: ${fullPrompt}`);
+async def send_welcome_message(guild):
+    if guild.id != ALLOWED_SERVER_ID:
+        return
     
-    try {
-      console.log("Attempting to generate content...");
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const result = await model.generateContent(fullPrompt);
-      console.log("Content generated successfully.");
-      const response = result.response;
-      const text = response.text();
-      console.log(`Generated text: ${text}`);
+    print(f"Sending welcome message to allowed guild: {guild.name}")
+    try:
+        channel = next((ch for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages), None)
+        if channel:
+            await channel.send("Hello, I'm your AI Assistant. Type `/chat \"your question\"` to chat with me here, or `/dm \"your question\"` to receive a DM!")
+            print(f"Welcome message sent to {channel.name} in {guild.name}")
+        else:
+            print(f"No suitable channel found in {guild.name}")
+    except Exception as error:
+        print(f"Error sending welcome message to {guild.name}: {error}")
 
-      if (!text || text.length < 5) {
-        message.channel.send("I'm having trouble generating a response. Please try again later.");
-        return;
-      }
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+    allowed_guild = discord.utils.get(bot.guilds, id=ALLOWED_SERVER_ID)
+    if allowed_guild:
+        await send_welcome_message(allowed_guild)
+        await set_bot_nickname(allowed_guild, BOT_NICKNAME)
+    else:
+        print(f"Bot is not in the allowed server (ID: {ALLOWED_SERVER_ID})")
 
-      // Split the response into chunks of 2000 characters or less
-      const chunks = text.match(/.{1,2000}/g);
-      for (const chunk of chunks) {
-        console.log(`Sending chunk: ${chunk}`);
-        await message.channel.send(chunk);
-      }
-      console.log("All chunks sent.");
-    } catch (error) {
-      console.error("Error details:", error);
-      message.channel.send(`An error occurred: ${error.message}`);
-    }
-  } else {
-    console.log("Message does not start with '/chat', ignoring.");
-  }
-});
+async def generate_ai_response(prompt):
+    full_prompt = f"You are {AI_EMOTION}. Respond to: \"{prompt}\""
+    print(f"Full Prompt: {full_prompt}")
 
-// Login to Discord
-client.login(process.env.DISCORD_TOKEN);
+    try:
+        response = model.generate_content(full_prompt)
+        text = response.text
+        print(f"Generated text: {text}")
+
+        if not text or len(text) < 5:
+            return "I'm having trouble generating a response. Please try again later."
+
+        return text
+    except Exception as error:
+        print(f"Error details: {error}")
+        return f"An error occurred: {str(error)}"
+
+@bot.command()
+async def chat(ctx, *, user_prompt):
+    if ctx.guild.id != ALLOWED_SERVER_ID:
+        return
+
+    print(f"Chat command detected. Prompt: {user_prompt}")
+    response = await generate_ai_response(user_prompt)
+
+    # Split the response into chunks of 2000 characters or less
+    chunks = [response[i:i+2000] for i in range(0, len(response), 2000)]
+    for chunk in chunks:
+        print(f"Sending chunk: {chunk}")
+        await ctx.send(chunk)
+    print("All chunks sent.")
+
+@bot.command()
+async def dm(ctx, *, user_prompt):
+    if ctx.guild.id != ALLOWED_SERVER_ID:
+        return
+
+    print(f"DM command detected. Prompt: {user_prompt}")
+    response = await generate_ai_response(user_prompt)
+
+    try:
+        # Split the response into chunks of 2000 characters or less
+        chunks = [response[i:i+2000] for i in range(0, len(response), 2000)]
+        for chunk in chunks:
+            print(f"Sending DM chunk: {chunk}")
+            await ctx.author.send(chunk)
+        print("All DM chunks sent.")
+        await ctx.send("I've sent you a DM with my response!")
+    except discord.Forbidden:
+        await ctx.send("I couldn't send you a DM. Please check your privacy settings and ensure you allow DMs from server members.")
+
+# Run the bot
+bot.run(os.getenv('DISCORD_TOKEN'))
