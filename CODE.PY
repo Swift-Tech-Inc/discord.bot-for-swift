@@ -1,3 +1,6 @@
+import os
+import discord
+from discord.ext import commands
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -50,16 +53,6 @@ async def send_welcome_message(guild):
     except Exception as error:
         print(f"Error sending welcome message to {guild.name}: {error}")
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name}')
-    allowed_guild = discord.utils.get(bot.guilds, id=ALLOWED_SERVER_ID)
-    if allowed_guild:
-        await send_welcome_message(allowed_guild)
-        await set_bot_nickname(allowed_guild, BOT_NICKNAME)
-    else:
-        print(f"Bot is not in the allowed server (ID: {ALLOWED_SERVER_ID})")
-
 async def generate_ai_response(prompt):
     full_prompt = f"You are {AI_EMOTION}. Respond to: \"{prompt}\""
     print(f"Full Prompt: {full_prompt}")
@@ -77,9 +70,19 @@ async def generate_ai_response(prompt):
         print(f"Error details: {error}")
         return f"An error occurred: {str(error)}"
 
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+    allowed_guild = discord.utils.get(bot.guilds, id=ALLOWED_SERVER_ID)
+    if allowed_guild:
+        await send_welcome_message(allowed_guild)
+        await set_bot_nickname(allowed_guild, BOT_NICKNAME)
+    else:
+        print(f"Bot is not in the allowed server (ID: {ALLOWED_SERVER_ID})")
+
 @bot.command()
 async def chat(ctx, *, user_prompt):
-    if ctx.guild.id != ALLOWED_SERVER_ID:
+    if ctx.guild and ctx.guild.id != ALLOWED_SERVER_ID:
         return
 
     print(f"Chat command detected. Prompt: {user_prompt}")
@@ -94,7 +97,7 @@ async def chat(ctx, *, user_prompt):
 
 @bot.command()
 async def dm(ctx, *, user_prompt):
-    if ctx.guild.id != ALLOWED_SERVER_ID:
+    if ctx.guild and ctx.guild.id != ALLOWED_SERVER_ID:
         return
 
     print(f"DM command detected. Prompt: {user_prompt}")
@@ -107,7 +110,7 @@ async def dm(ctx, *, user_prompt):
             print(f"Sending DM chunk: {chunk}")
             await ctx.author.send(chunk)
         print("All DM chunks sent.")
-        await ctx.send("I've sent you a DM with my response!")
+        # Removed the confirmation message in the server channel
     except discord.Forbidden:
         await ctx.send("I couldn't send you a DM. Please check your privacy settings and ensure you allow DMs from server members.")
 
