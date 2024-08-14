@@ -12,10 +12,14 @@ if (!process.env.GOOGLE_API_KEY) {
 const ALLOWED_SERVER_ID = '1258415543979999352'; // Replace with your server's ID
 
 // Set the AI's emotion/personality here
-let AI_EMOTION = "An AI Assistant"; // Change this to set the AI's emotion
+const AI_EMOTION = "A Pirate"; // Change this to set the AI's emotion
 
 // Set the bot's nickname here
-let BOT_NICKNAME = "Assist"; // Change this to set the bot's nickname
+const BOT_NICKNAME = "Pirate"; // Change this to set the bot's nickname
+
+// Store the original nickname and emotion
+let originalNickname = BOT_NICKNAME;
+let originalEmotion = AI_EMOTION;
 
 // Initialize Discord client
 const client = new Client({
@@ -54,7 +58,7 @@ async function sendWelcomeMessage(guild) {
       channel => channel.type === 0 && channel.permissionsFor(guild.members.me).has('SendMessages')
     );
     if (channel) {
-      await channel.send(`Hello, I'm your AI Assistant called ${BOT_NICKNAME}. Type \`/chat "your question"\` to chat with me here, or \`/dm "your question"\` to receive a DM!`);
+      await channel.send(`Ahoy, matey! I be yer AI ${BOT_NICKNAME} called ${BOT_NICKNAME}. Type \`/chat "yer question"\` to parley with me here, or \`/dm "yer question"\` to receive a secret message in a bottle!`);
       console.log(`Welcome message sent to ${channel.name} in ${guild.name}`);
     } else {
       console.log(`No suitable channel found in ${guild.name}`);
@@ -66,17 +70,16 @@ async function sendWelcomeMessage(guild) {
 
 // Function to generate AI response
 async function generateAIResponse(prompt, userId) {
-  let botName = BOT_NICKNAME;
-  let botEmotion = AI_EMOTION;
+  let botName, botEmotion;
 
-  // Check if there's a previous conversation with this user
   if (conversationHistory.has(userId)) {
     const history = conversationHistory.get(userId);
     botName = history.nickname;
     botEmotion = history.emotion;
   } else {
-    // If it's a new conversation, store the current name and emotion
-    conversationHistory.set(userId, { nickname: BOT_NICKNAME, emotion: AI_EMOTION });
+    botName = BOT_NICKNAME;
+    botEmotion = AI_EMOTION;
+    conversationHistory.set(userId, { nickname: botName, emotion: botEmotion });
   }
 
   const fullPrompt = `You are ${botEmotion} named ${botName}. Respond to: "${prompt}"`;
@@ -116,9 +119,7 @@ client.once("ready", async () => {
 
 // Message creation event
 client.on("messageCreate", async (message) => {
-  // Ignore messages from bots
   if (message.author.bot) return;
-  // Check if the message is in the allowed server or a DM
   if (message.guild && message.guild.id !== ALLOWED_SERVER_ID) return;
 
   console.log(`Received message: ${message.content}`);
@@ -126,7 +127,6 @@ client.on("messageCreate", async (message) => {
   if (message.content.startsWith("/chat")) {
     const userPrompt = message.content.slice(6).trim();
     const response = await generateAIResponse(userPrompt, message.author.id);
-    // Split the response into chunks of 2000 characters or less
     const chunks = response.match(/.{1,2000}/g);
     for (const chunk of chunks) {
       console.log(`Sending chunk: ${chunk}`);
@@ -137,7 +137,6 @@ client.on("messageCreate", async (message) => {
     const userPrompt = message.content.slice(4).trim();
     const response = await generateAIResponse(userPrompt, message.author.id);
     try {
-      // Split the response into chunks of 2000 characters or less
       const chunks = response.match(/.{1,2000}/g);
       for (const chunk of chunks) {
         console.log(`Sending DM chunk: ${chunk}`);
@@ -149,19 +148,20 @@ client.on("messageCreate", async (message) => {
       console.error("Error sending DM:", error);
       await message.channel.send("I couldn't send you a DM. Please check your privacy settings and ensure you allow DMs from server members.");
     }
-  } else if (message.content.startsWith("/update_bot")) {
-    // New command to update bot's name and emotion
-    const [, newName, newEmotion] = message.content.split('"').filter(Boolean);
-    if (newName && newEmotion) {
-      BOT_NICKNAME = newName.trim();
-      AI_EMOTION = newEmotion.trim();
-      await setBotNickname(message.guild, BOT_NICKNAME);
-      await message.channel.send(`Bot updated. New name: ${BOT_NICKNAME}, New emotion: ${AI_EMOTION}`);
-    } else {
-      await message.channel.send('Please provide both name and emotion in quotes. Example: /update_bot "New Name" "New Emotion"');
-    }
   }
 });
 
 // Login to Discord
 client.login(process.env.DISCORD_TOKEN);
+
+// To change the bot's nickname and emotion, modify these lines:
+// const AI_EMOTION = "A Ninja";
+// const BOT_NICKNAME = "Ninja";
+
+// If you change the above constants, the code below will ensure that
+// existing conversations keep the old personality while new ones use the new one.
+if (BOT_NICKNAME !== originalNickname || AI_EMOTION !== originalEmotion) {
+  console.log(`Bot personality changed from ${originalNickname} (${originalEmotion}) to ${BOT_NICKNAME} (${AI_EMOTION})`);
+  console.log("Existing conversations will keep the original personality.");
+  console.log("New conversations will use the new personality.");
+}
