@@ -133,7 +133,7 @@ client.on("messageCreate", async (message) => {
         await message.author.send(chunk);
       }
       console.log("All DM chunks sent.");
-      await message.channel.send("I've sent you a DM with my response!");
+      // Removed the confirmation message in the server channel
     } catch (error) {
       console.error("Error sending DM:", error);
       await message.channel.send("I couldn't send you a DM. Please check your privacy settings and ensure you allow DMs from server members.");
