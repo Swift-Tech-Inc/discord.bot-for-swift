@@ -1,4 +1,4 @@
-# Discord Bot for Swift
+# Discord Bot for the Swift Platform. 🤖
 
 ## Welcome to the Swift Discord Bot Repo!
 
