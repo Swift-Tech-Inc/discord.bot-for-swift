@@ -43,7 +43,7 @@ async def send_welcome_message(guild):
     try:
         channel = next((ch for ch in guild.text_channels if ch.permissions_for(guild.me).send_messages), None)
         if channel:
-            await channel.send("Hello, I'm your AI Assistant. Type `/chat \"your question\"` to chat with me here, or `/dm \"your question\"` to receive a DM!")
+            await channel.send("Hello, I'm your Swift AI. Type `/chat \"your question\"` to chat with me here, or `/dm \"your question\"` to receive a DM!")
             print(f"Welcome message sent to {channel.name} in {guild.name}")
         else:
             print(f"No suitable channel found in {guild.name}")
