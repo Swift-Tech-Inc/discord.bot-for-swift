@@ -24,8 +24,9 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.DirectMessages,
   ],
-  partials: [Partials.Channel],
+  partials: [Partials.Channel, Partials.Message],
 });
 
 // Initialize Google AI
@@ -51,13 +52,38 @@ async function sendWelcomeMessage(guild) {
       channel => channel.type === 0 && channel.permissionsFor(guild.members.me).has('SendMessages')
     );
     if (channel) {
-      await channel.send(`Hello, I'm your AI Assistant. Type \`/chat "your question"\` to chat with me!`);
+      await channel.send("Hello, I'm your Swift AI. Type `/chat \"your question\"` to chat with me here, or `/dm \"your question\"` to receive a DM!");
       console.log(`Welcome message sent to ${channel.name} in ${guild.name}`);
     } else {
       console.log(`No suitable channel found in ${guild.name}`);
     }
   } catch (error) {
     console.error(`Error sending welcome message to ${guild.name}:`, error);
+  }
+}
+
+// Function to generate AI response
+async function generateAIResponse(prompt) {
+  const fullPrompt = `You are ${AI_EMOTION}. Respond to: "${prompt}"`;
+  console.log(`Full Prompt: ${fullPrompt}`);
+  
+  try {
+    console.log("Attempting to generate content...");
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const result = await model.generateContent(fullPrompt);
+    console.log("Content generated successfully.");
+    const response = result.response;
+    const text = response.text();
+    console.log(`Generated text: ${text}`);
+
+    if (!text || text.length < 5) {
+      return "I'm having trouble generating a response. Please try again later.";
+    }
+
+    return text;
+  } catch (error) {
+    console.error("Error details:", error);
+    return `An error occurred: ${error.message}`;
   }
 }
 
@@ -76,46 +102,42 @@ client.once("ready", async () => {
 
 // Message creation event
 client.on("messageCreate", async (message) => {
-  // Ignore messages from other servers
-  if (message.guild.id !== ALLOWED_SERVER_ID) return;
+  // Ignore messages from bots
+  if (message.author.bot) return;
+
+  // Check if the message is in the allowed server or a DM
+  if (message.guild && message.guild.id !== ALLOWED_SERVER_ID) return;
 
   console.log(`Received message: ${message.content}`);
 
-  if (message.author.bot) return;
-
   if (message.content.startsWith("/chat")) {
-    console.log("Chat command detected.");
-    const userPrompt = message.content.slice(6);
-    const fullPrompt = `You are ${AI_EMOTION}. Respond to: "${userPrompt}"`;
-    console.log(`Full Prompt: ${fullPrompt}`);
-    
-    try {
-      console.log("Attempting to generate content...");
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const result = await model.generateContent(fullPrompt);
-      console.log("Content generated successfully.");
-      const response = result.response;
-      const text = response.text();
-      console.log(`Generated text: ${text}`);
+    const userPrompt = message.content.slice(6).trim();
+    const response = await generateAIResponse(userPrompt);
 
-      if (!text || text.length < 5) {
-        message.channel.send("I'm having trouble generating a response. Please try again later.");
-        return;
-      }
-
-      // Split the response into chunks of 2000 characters or less
-      const chunks = text.match(/.{1,2000}/g);
-      for (const chunk of chunks) {
-        console.log(`Sending chunk: ${chunk}`);
-        await message.channel.send(chunk);
-      }
-      console.log("All chunks sent.");
-    } catch (error) {
-      console.error("Error details:", error);
-      message.channel.send(`An error occurred: ${error.message}`);
+    // Split the response into chunks of 2000 characters or less
+    const chunks = response.match(/.{1,2000}/g);
+    for (const chunk of chunks) {
+      console.log(`Sending chunk: ${chunk}`);
+      await message.channel.send(chunk);
     }
-  } else {
-    console.log("Message does not start with '/chat', ignoring.");
+    console.log("All chunks sent.");
+  } else if (message.content.startsWith("/dm")) {
+    const userPrompt = message.content.slice(4).trim();
+    const response = await generateAIResponse(userPrompt);
+
+    try {
+      // Split the response into chunks of 2000 characters or less
+      const chunks = response.match(/.{1,2000}/g);
+      for (const chunk of chunks) {
+        console.log(`Sending DM chunk: ${chunk}`);
+        await message.author.send(chunk);
+      }
+      console.log("All DM chunks sent.");
+      await message.channel.send("I've sent you a DM with my response!");
+    } catch (error) {
+      console.error("Error sending DM:", error);
+      await message.channel.send("I couldn't send you a DM. Please check your privacy settings and ensure you allow DMs from server members.");
+    }
   }
 });
 
