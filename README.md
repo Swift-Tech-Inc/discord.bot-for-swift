@@ -13,7 +13,7 @@ This repository contains the source code for a Discord bot built using node.js a
 **Getting Started:**
 
 * **Clone the repository:**  Use git to clone this repository to your local machine.
-* **Set up your environment:** If your using Python,ensure you have Python installed and configured properly.
+* **Set up your environment:** If youre using Python, ensure you have Python installed and configured properly.
 * **Explore the code:** Browse through the various files and familiarize yourself with the bot's structure.
 
 **Contributing:**
