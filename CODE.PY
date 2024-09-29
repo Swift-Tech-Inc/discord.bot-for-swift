@@ -116,3 +116,4 @@ async def dm(ctx, *, user_prompt):
 
 # Run the bot
 bot.run(os.getenv('DISCORD_TOKEN'))
+ 
